@@ -46,6 +46,14 @@ Sudah terdaftar di `.mcp.json` root project, jadi Claude Code memuatnya otomatis
 }
 ```
 
+## Versioning & release
+
+Project ini memakai [changesets](https://github.com/changesets/changesets):
+
+1. Setiap PR yang mengubah perilaku wajib menyertakan file changeset — jalankan `pnpm changeset`, pilih tipe bump (patch/minor/major), tulis ringkasannya. CI menolak PR tanpa changeset (`pnpm changeset --empty` untuk perubahan yang tidak perlu naik versi).
+2. Saat PR masuk ke `main`, workflow Release membuka/meng-update PR **"chore: release"** berisi kenaikan versi + `CHANGELOG.md`.
+3. Merge PR release itu → versi resmi naik, git tag dan GitHub Release dibuat otomatis.
+
 ## Catatan
 
 - Tutup/restart CapCut setelah `save_draft` supaya project baru muncul di daftar.
