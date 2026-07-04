@@ -20,7 +20,7 @@ Contoh, setelah terpasang kamu bisa minta:
 Yang perlu ada di komputermu:
 
 - [CapCut desktop](https://www.capcut.com) (versi gratis cukup) — jalankan minimal sekali setelah install
-- [Node.js](https://nodejs.org) versi 18 ke atas
+- [Node.js](https://nodejs.org) versi 24 ke atas
 - [ffmpeg](https://ffmpeg.org) *(opsional tapi disarankan — supaya durasi video/audio terbaca otomatis)*: `brew install ffmpeg` di Mac, `winget install ffmpeg` di Windows
 
 Lalu daftarkan server ini ke aplikasi AI-mu dengan config berikut (tidak perlu download apa-apa, semuanya otomatis):

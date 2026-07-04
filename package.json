@@ -16,7 +16,7 @@
     "dist"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=24"
   },
   "packageManager": "pnpm@10.13.1",
   "dependencies": {
@@ -25,7 +25,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "^2.31.0",
-    "@types/node": "^20.0.0",
+    "@types/node": "^24.13.2",
     "typescript": "^5.4.0"
   }
 }
