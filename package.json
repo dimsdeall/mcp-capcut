@@ -1,6 +1,6 @@
 {
   "name": "capcut-mcp",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "MCP server that edits CapCut desktop drafts by writing draft_content.json directly",
   "type": "module",
   "bin": {

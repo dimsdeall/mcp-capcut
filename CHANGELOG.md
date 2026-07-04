@@ -1,5 +1,16 @@
 # capcut-mcp
 
+## 0.3.0
+
+### Minor Changes
+
+- ea3db21: Six new tools: `add_subtitles` (SRT import), `open_draft` (edit saved drafts), `edit_segment`, `remove_segment`, `audio_fade`, and `set_background`. The server version reported over MCP now follows package.json.
+- 1354a78: Require Node.js 24+: engines bumped, CI and release workflows now run on Node 24.
+
+### Patch Changes
+
+- 702cf70: Windows support: resolve the default CapCut drafts folder from %LOCALAPPDATA% on Windows instead of always using the macOS path.
+
 ## 0.2.1
 
 ### Patch Changes
