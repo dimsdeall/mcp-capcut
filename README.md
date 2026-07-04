@@ -4,12 +4,15 @@ MCP server untuk mengedit video di **CapCut desktop** lewat AI — kamu tinggal 
 
 ## Bisa apa saja?
 
-- Membuat project CapCut baru dengan resolusi dan frame rate apa pun (landscape, portrait untuk Reels/TikTok, dll.)
-- Menambahkan klip video atau gambar — bisa dipotong (trim), diatur posisinya di timeline, diubah kecepatan, volume, ukuran, dan letaknya di layar
-- Menambahkan musik atau voice-over
-- Menambahkan teks/subtitle dengan warna, ukuran, dan posisi bebas
-- Melihat isi timeline project yang sedang disusun
-- Menyimpan project langsung ke daftar draft CapCut — tinggal buka CapCut, project-nya sudah ada
+| Tool | Fungsi |
+|---|---|
+| `create_draft` | Membuat project CapCut baru dengan resolusi dan frame rate apa pun (landscape, portrait untuk Reels/TikTok, dll.) |
+| `add_video` | Menambahkan klip video atau gambar — bisa dipotong (trim), diatur posisinya di timeline, diubah kecepatan, volume, ukuran, dan letaknya di layar |
+| `add_audio` | Menambahkan musik atau voice-over |
+| `add_text` | Menambahkan teks/subtitle dengan warna, ukuran, dan posisi bebas |
+| `describe_draft` | Melihat isi timeline project yang sedang disusun |
+| `save_draft` | Menyimpan project langsung ke daftar draft CapCut — tinggal buka CapCut, project-nya sudah ada |
+| `list_drafts` | Melihat daftar project, baik yang sedang disusun maupun yang sudah tersimpan |
 
 Contoh, setelah terpasang kamu bisa minta:
 
