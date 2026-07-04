@@ -25,52 +25,40 @@ Override lokasi dengan env `CAPCUT_DRAFTS_DIR` (dipakai juga untuk testing).
 
 ## Instalasi
 
-```bash
-git clone https://github.com/dimsdeall/mcp-capcut.git
-cd mcp-capcut
-pnpm install
-pnpm build
-```
-
-Hasil build ada di `dist/index.js` — path inilah yang didaftarkan ke klien MCP.
-
-### Claude Code (per project)
-
-Buat `.mcp.json` di root project tempat kamu bekerja:
+Tidak perlu clone atau build — `npx` menjalankan server langsung dari repo GitHub ini (di-clone + di-compile otomatis saat pertama kali, lalu di-cache):
 
 ```json
 {
   "mcpServers": {
     "capcut": {
-      "command": "node",
-      "args": ["/path/absolut/ke/mcp-capcut/dist/index.js"]
+      "command": "npx",
+      "args": ["-y", "github:dimsdeall/mcp-capcut"]
     }
   }
 }
 ```
+
+Untuk mengunci ke versi tertentu, pakai tag rilis: `github:dimsdeall/mcp-capcut#v0.2.0`.
+
+### Claude Code (per project)
+
+Simpan config di atas sebagai `.mcp.json` di root project tempat kamu bekerja.
 
 ### Claude Code (semua project)
 
 ```bash
-claude mcp add --scope user capcut -- node /path/absolut/ke/mcp-capcut/dist/index.js
+claude mcp add --scope user capcut -- npx -y github:dimsdeall/mcp-capcut
 ```
 
 ### Claude Desktop
 
-Tambahkan ke `~/Library/Application Support/Claude/claude_desktop_config.json`, lalu restart aplikasinya (Cmd+Q):
+Tambahkan config di atas ke `~/Library/Application Support/Claude/claude_desktop_config.json`, lalu restart aplikasinya (Cmd+Q).
 
-```json
-{
-  "mcpServers": {
-    "capcut": {
-      "command": "node",
-      "args": ["/path/absolut/ke/mcp-capcut/dist/index.js"]
-    }
-  }
-}
-```
+> **Catatan nvm:** Claude Desktop tidak membaca PATH shell. Kalau Node terpasang lewat nvm, isi `command` dengan path absolut npx (`which npx`), misalnya `/Users/kamu/.nvm/versions/node/v20.19.4/bin/npx`.
 
-> **Catatan nvm:** Claude Desktop tidak membaca PATH shell. Kalau Node terpasang lewat nvm, isi `command` dengan path absolut Node (`which node`), misalnya `/Users/kamu/.nvm/versions/node/v20.19.4/bin/node`.
+### Gemini CLI
+
+Config yang sama masuk ke `~/.gemini/settings.json` (key-nya juga `mcpServers`).
 
 Setelah terdaftar, coba minta AI:
 
@@ -95,6 +83,9 @@ Semua waktu di API tools dalam **detik**; konversi ke mikrodetik (format interna
 ## Development
 
 ```bash
+git clone https://github.com/dimsdeall/mcp-capcut.git
+cd mcp-capcut
+pnpm install
 pnpm dev      # tsc --watch
 pnpm build    # compile ke dist/
 ```
