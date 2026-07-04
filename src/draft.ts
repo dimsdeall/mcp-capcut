@@ -19,6 +19,17 @@ export const SEC = 1_000_000; // microseconds per second
 const uuid = () => randomUUID().toUpperCase();
 
 export function defaultDraftsRoot(): string {
+  if (process.platform === "win32") {
+    const localAppData =
+      process.env.LOCALAPPDATA || path.join(os.homedir(), "AppData", "Local");
+    return path.join(
+      localAppData,
+      "CapCut",
+      "User Data",
+      "Projects",
+      "com.lveditor.draft"
+    );
+  }
   return path.join(
     os.homedir(),
     "Movies",
