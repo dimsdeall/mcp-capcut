@@ -10,7 +10,13 @@ MCP server untuk mengedit video di **CapCut desktop** lewat AI — kamu tinggal 
 | `add_video` | Menambahkan klip video atau gambar — bisa dipotong (trim), diatur posisinya di timeline, diubah kecepatan, volume, ukuran, dan letaknya di layar |
 | `add_audio` | Menambahkan musik atau voice-over |
 | `add_text` | Menambahkan teks/subtitle dengan warna, ukuran, dan posisi bebas |
+| `add_subtitles` | Import file subtitle `.srt` sekaligus — semua baris masuk dengan timing otomatis |
+| `audio_fade` | Memberi fade in/out pada musik atau voice-over |
+| `set_background` | Latar belakang warna solid atau blur untuk klip yang tidak memenuhi layar (mis. video landscape di project portrait) |
+| `edit_segment` | Mengubah klip yang sudah ditaruh: geser posisi, ganti kecepatan, volume, ukuran, letak, rotasi, transparansi |
+| `remove_segment` | Menghapus klip dari timeline |
 | `describe_draft` | Melihat isi timeline project yang sedang disusun |
+| `open_draft` | Membuka kembali project yang sudah tersimpan untuk diedit lagi |
 | `save_draft` | Menyimpan project langsung ke daftar draft CapCut — tinggal buka CapCut, project-nya sudah ada |
 | `list_drafts` | Melihat daftar project, baik yang sedang disusun maupun yang sudah tersimpan |
 

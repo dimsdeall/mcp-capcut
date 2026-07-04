@@ -82,6 +82,37 @@ export function probeMedia(file: string): MediaInfo | null {
   }
 }
 
+// ---------- SRT subtitles ----------
+
+export interface SrtCue {
+  startUs: number;
+  endUs: number;
+  text: string;
+}
+
+/** Parse SRT text: blocks of "index / 00:00:01,000 --> 00:00:04,000 / lines". */
+export function parseSrt(srt: string): SrtCue[] {
+  const toUs = (t: string): number => {
+    const m = t.trim().match(/^(\d+):([0-5]?\d):([0-5]?\d)[,.](\d{1,3})$/);
+    if (!m) throw new Error(`Format waktu SRT tidak valid: "${t}"`);
+    const [, h, min, s, ms] = m;
+    return ((+h * 3600 + +min * 60 + +s) * 1000 + +ms.padEnd(3, "0")) * 1000;
+  };
+  const cues: SrtCue[] = [];
+  for (const block of srt.replace(/\r/g, "").split(/\n\n+/)) {
+    const lines = block.split("\n").filter((l) => l.trim() !== "");
+    if (lines.length === 0) continue;
+    const timeLineIdx = lines.findIndex((l) => l.includes("-->"));
+    if (timeLineIdx === -1) continue;
+    const [start, end] = lines[timeLineIdx].split("-->");
+    const text = lines.slice(timeLineIdx + 1).join("\n").trim();
+    if (!text) continue;
+    cues.push({ startUs: toUs(start), endUs: toUs(end), text });
+  }
+  if (cues.length === 0) throw new Error("Tidak ada subtitle yang terbaca dari SRT.");
+  return cues;
+}
+
 // ---------- segment helper templates ----------
 
 function speedMaterial() {
@@ -707,6 +738,146 @@ export class Draft {
     return seg.id;
   }
 
+  /** Load an existing draft folder from disk so it can be edited further. */
+  static load(draftsRoot: string, name: string): Draft {
+    const file = path.join(draftsRoot, name, "draft_content.json");
+    if (!fs.existsSync(file)) {
+      throw new Error(`draft_content.json tidak ditemukan di ${path.dirname(file)}`);
+    }
+    const content = JSON.parse(fs.readFileSync(file, "utf8"));
+    const d = new Draft(
+      name,
+      content.canvas_config?.width ?? 1920,
+      content.canvas_config?.height ?? 1080,
+      content.fps ?? 30
+    );
+    d.content = content;
+    (d as { id: string }).id = content.id ?? d.id;
+    return d;
+  }
+
+  private findSegment(segmentId: string): { track: any; segment: any } {
+    for (const track of this.content.tracks) {
+      const segment = track.segments.find((s: any) => s.id === segmentId);
+      if (segment) return { track, segment };
+    }
+    throw new Error(`Segment ${segmentId} tidak ditemukan di draft "${this.name}".`);
+  }
+
+  private recomputeDuration() {
+    let max = 0;
+    for (const t of this.content.tracks)
+      for (const s of t.segments)
+        max = Math.max(max, s.target_timerange.start + s.target_timerange.duration);
+    this.content.duration = max;
+  }
+
+  editSegment(
+    segmentId: string,
+    opts: {
+      targetStartUs?: number;
+      speed?: number;
+      volume?: number;
+      visible?: boolean;
+    } & TransformOptions
+  ) {
+    const { segment } = this.findSegment(segmentId);
+    if (opts.targetStartUs !== undefined) segment.target_timerange.start = opts.targetStartUs;
+    if (opts.speed !== undefined) {
+      segment.speed = opts.speed;
+      if (segment.source_timerange) {
+        segment.target_timerange.duration = Math.round(
+          segment.source_timerange.duration / opts.speed
+        );
+      }
+      const speedMat = this.content.materials.speeds.find((sp: any) =>
+        segment.extra_material_refs?.includes(sp.id)
+      );
+      if (speedMat) speedMat.speed = opts.speed;
+    }
+    if (opts.volume !== undefined) segment.volume = opts.volume;
+    if (opts.visible !== undefined) segment.visible = opts.visible;
+    if (opts.scale !== undefined) segment.clip.scale = { x: opts.scale, y: opts.scale };
+    if (opts.x !== undefined) segment.clip.transform.x = opts.x;
+    if (opts.y !== undefined) segment.clip.transform.y = opts.y;
+    if (opts.rotation !== undefined) segment.clip.rotation = opts.rotation;
+    if (opts.alpha !== undefined) segment.clip.alpha = opts.alpha;
+    this.recomputeDuration();
+  }
+
+  removeSegment(segmentId: string) {
+    const { track, segment } = this.findSegment(segmentId);
+    track.segments = track.segments.filter((s: any) => s.id !== segmentId);
+    // Drop the segment's private helper materials plus its main material
+    // when nothing else references it.
+    const refs = new Set(segment.extra_material_refs ?? []);
+    const stillUsed = this.content.tracks.some((t: any) =>
+      t.segments.some((s: any) => s.material_id === segment.material_id)
+    );
+    for (const key of Object.keys(this.content.materials)) {
+      this.content.materials[key] = this.content.materials[key].filter(
+        (mat: any) =>
+          !refs.has(mat.id) && (stillUsed || mat.id !== segment.material_id)
+      );
+    }
+    this.recomputeDuration();
+  }
+
+  /** Fade in/out for an audio segment via an audio_fades material. */
+  setAudioFade(segmentId: string, fadeInUs: number, fadeOutUs: number) {
+    const { track, segment } = this.findSegment(segmentId);
+    if (track.type !== "audio") {
+      throw new Error(`Segment ${segmentId} bukan segment audio (track: ${track.type}).`);
+    }
+    const m = this.content.materials;
+    m.audio_fades = m.audio_fades ?? [];
+    // Replace an existing fade on this segment instead of stacking a second one.
+    const existing = m.audio_fades.find((f: any) =>
+      segment.extra_material_refs?.includes(f.id)
+    );
+    if (existing) {
+      existing.fade_in_duration = fadeInUs;
+      existing.fade_out_duration = fadeOutUs;
+      return;
+    }
+    const fade = {
+      fade_in_duration: fadeInUs,
+      fade_out_duration: fadeOutUs,
+      fade_type: 0,
+      id: uuid(),
+      type: "audio_fade",
+    };
+    m.audio_fades.push(fade);
+    segment.extra_material_refs = segment.extra_material_refs ?? [];
+    segment.extra_material_refs.push(fade.id);
+  }
+
+  /**
+   * Background behind video clips that do not fill the canvas: a solid color
+   * ("#RRGGBB") or a blur strength (0..1). Applies to every video segment's
+   * canvas material.
+   */
+  setBackground(opts: { color?: string; blur?: number }) {
+    if (!opts.color && opts.blur === undefined) {
+      throw new Error("Isi color (mis. #000000) atau blur (0..1).");
+    }
+    const canvases = this.content.materials.canvases;
+    if (canvases.length === 0) {
+      throw new Error("Belum ada klip video di draft — tambahkan add_video dulu.");
+    }
+    for (const c of canvases) {
+      if (opts.color) {
+        c.type = "canvas_color";
+        c.color = opts.color;
+        c.blur = 0.0;
+      } else {
+        c.type = "canvas_blur";
+        c.blur = opts.blur;
+        c.color = "";
+      }
+    }
+  }
+
   /** Human-readable timeline overview for the describe_draft tool. */
   describe() {
     return {
@@ -717,6 +888,7 @@ export class Draft {
       tracks: this.content.tracks.map((t: any) => ({
         type: t.type,
         segments: t.segments.map((s: any) => ({
+          segmentId: s.id,
           startSec: s.target_timerange.start / SEC,
           durationSec: s.target_timerange.duration / SEC,
           materialId: s.material_id,

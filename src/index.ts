@@ -10,7 +10,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import * as fs from "node:fs";
-import { Draft, SEC, defaultDraftsRoot, probeMedia } from "./draft.js";
+import { Draft, SEC, defaultDraftsRoot, parseSrt, probeMedia } from "./draft.js";
 
 const draftsRoot = process.env.CAPCUT_DRAFTS_DIR || defaultDraftsRoot();
 const drafts = new Map<string, Draft>();
@@ -31,7 +31,11 @@ function ok(data: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }] };
 }
 
-const server = new McpServer({ name: "capcut-mcp", version: "0.1.0" });
+const pkg = JSON.parse(
+  fs.readFileSync(new URL("../package.json", import.meta.url), "utf8")
+);
+
+const server = new McpServer({ name: "capcut-mcp", version: pkg.version });
 
 server.tool(
   "create_draft",
@@ -160,6 +164,128 @@ server.tool(
       y: a.y,
     });
     return ok({ segmentId: segId, timeline: d.describe() });
+  }
+);
+
+server.tool(
+  "open_draft",
+  "Buka draft yang sudah ada di folder drafts CapCut untuk diedit lagi di sesi ini.",
+  { name: z.string().describe("Nama folder draft di folder drafts CapCut") },
+  async ({ name }) => {
+    if (drafts.has(name)) return ok(getDraft(name).describe());
+    const d = Draft.load(draftsRoot, name);
+    drafts.set(name, d);
+    return ok(d.describe());
+  }
+);
+
+server.tool(
+  "add_subtitles",
+  "Import file .srt sekaligus menjadi banyak segmen teks dengan timing otomatis.",
+  {
+    draft: z.string(),
+    srtPath: z.string().describe("Path absolut file .srt"),
+    trackIndex: z.number().int().default(0),
+    fontSize: z.number().default(10),
+    color: z
+      .tuple([z.number(), z.number(), z.number()])
+      .optional()
+      .describe("Warna RGB 0..1, default putih [1,1,1]"),
+    y: z.number().default(-0.8).describe("Posisi vertikal -1..1, -0.8 = bawah"),
+    offset: z.number().default(0).describe("Geser semua timing (detik), boleh negatif"),
+  },
+  async (a) => {
+    if (!fs.existsSync(a.srtPath)) throw new Error(`File tidak ditemukan: ${a.srtPath}`);
+    const d = getDraft(a.draft);
+    const cues = parseSrt(fs.readFileSync(a.srtPath, "utf8"));
+    for (const cue of cues) {
+      const start = cue.startUs + Math.round(a.offset * SEC);
+      d.addText({
+        text: cue.text,
+        targetStartUs: Math.max(0, start),
+        durationUs: cue.endUs - cue.startUs,
+        trackIndex: a.trackIndex,
+        fontSize: a.fontSize,
+        color: a.color,
+        y: a.y,
+      });
+    }
+    return ok({ subtitlesAdded: cues.length, timeline: d.describe() });
+  }
+);
+
+server.tool(
+  "edit_segment",
+  "Ubah segment yang sudah ada (posisi timeline, kecepatan, volume, ukuran/letak di layar). segmentId didapat dari describe_draft atau hasil add_*.",
+  {
+    draft: z.string(),
+    segmentId: z.string(),
+    targetStart: z.number().optional().describe("Posisi mulai baru di timeline (detik)"),
+    speed: z.number().optional(),
+    volume: z.number().optional(),
+    visible: z.boolean().optional(),
+    scale: z.number().optional(),
+    x: z.number().optional().describe("Posisi horizontal -1..1"),
+    y: z.number().optional().describe("Posisi vertikal -1..1"),
+    rotation: z.number().optional().describe("Derajat"),
+    alpha: z.number().optional().describe("Transparansi 0..1"),
+  },
+  async (a) => {
+    const d = getDraft(a.draft);
+    d.editSegment(a.segmentId, {
+      targetStartUs: a.targetStart !== undefined ? Math.round(a.targetStart * SEC) : undefined,
+      speed: a.speed,
+      volume: a.volume,
+      visible: a.visible,
+      scale: a.scale,
+      x: a.x,
+      y: a.y,
+      rotation: a.rotation,
+      alpha: a.alpha,
+    });
+    return ok(d.describe());
+  }
+);
+
+server.tool(
+  "remove_segment",
+  "Hapus segment dari timeline (beserta material-nya bila tidak dipakai segment lain).",
+  { draft: z.string(), segmentId: z.string() },
+  async ({ draft, segmentId }) => {
+    const d = getDraft(draft);
+    d.removeSegment(segmentId);
+    return ok(d.describe());
+  }
+);
+
+server.tool(
+  "audio_fade",
+  "Beri fade in/out pada segment audio.",
+  {
+    draft: z.string(),
+    segmentId: z.string(),
+    fadeIn: z.number().default(0).describe("Durasi fade in (detik)"),
+    fadeOut: z.number().default(0).describe("Durasi fade out (detik)"),
+  },
+  async ({ draft, segmentId, fadeIn, fadeOut }) => {
+    const d = getDraft(draft);
+    d.setAudioFade(segmentId, Math.round(fadeIn * SEC), Math.round(fadeOut * SEC));
+    return ok({ segmentId, fadeInSec: fadeIn, fadeOutSec: fadeOut });
+  }
+);
+
+server.tool(
+  "set_background",
+  "Atur latar belakang di belakang klip yang tidak memenuhi canvas (mis. video landscape di project portrait): warna solid atau blur.",
+  {
+    draft: z.string(),
+    color: z.string().optional().describe('Warna hex, mis. "#000000"'),
+    blur: z.number().min(0).max(1).optional().describe("Kekuatan blur 0..1 (abaikan jika pakai color)"),
+  },
+  async ({ draft, color, blur }) => {
+    const d = getDraft(draft);
+    d.setBackground({ color, blur });
+    return ok({ background: color ?? `blur ${blur}` });
   }
 );
 
